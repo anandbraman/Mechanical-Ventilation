@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+import os
 
 torch.manual_seed(308)
 
@@ -42,11 +43,15 @@ class LSTM(nn.Module):
 
 # data goes to GPU
 device = torch.device('cuda')
+# avoiding some strange filepath issues related 
+# to gluster and kubernetes
+os.chdir("../")
 
-X_train = torch.load('~/files/X_train.pt')
-y_train = torch.load('~/files/y_train.pt')
-X_test = torch.load('~/files/X_test.pt')
-y_test = torch.load('~/files/y_test.pt')
+
+X_train = torch.load('home/X_train.pt')
+y_train = torch.load('home/y_train.pt')
+X_test = torch.load('home/X_test.pt')
+y_test = torch.load('home/y_test.pt')
 
 train_data = DataLoader(X_train, y_train)
 test_data = DataLoader(X_test, y_test)
