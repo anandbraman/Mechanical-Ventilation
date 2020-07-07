@@ -44,7 +44,7 @@ class LSTM(nn.Module):
                                                       x.size()[1], -1),
                                                self.hidden_cell)
         
-        preds = self.fc(lstm_out.reshape(-1, self.batch_size))
+        preds = self.fc(lstm_out.reshape(self.batch_size, -1))
         return preds.view(-1)
 
 
@@ -86,7 +86,6 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         model.init_hidden(X)
         y_pred = model(X)
-        y_pred = torch.sigmoid(y_pred).cuda()
 
         batch_loss = loss(y_pred, y)
         batch_loss.backward()
