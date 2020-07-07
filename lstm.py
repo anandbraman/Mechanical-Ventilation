@@ -43,6 +43,7 @@ class LSTM(nn.Module):
         lstm_out, self.hidden_cell = self.lstm(x.view(self.batch_size,
                                                       x.size()[1], -1),
                                                self.hidden_cell)
+        print(lstm_out.view())
         preds = self.fc(lstm_out.view(-1, self.batch_size))
         return preds.view(-1)
 
