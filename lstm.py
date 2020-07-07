@@ -43,7 +43,7 @@ class LSTM(nn.Module):
         lstm_out, self.hidden_cell = self.lstm(x.view(self.batch_size,
                                                       x.size()[1], -1),
                                                self.hidden_cell)
-        
+
         preds = self.fc(lstm_out.reshape(self.batch_size, -1))
         return preds.view(self.batch_size, -1)
 
@@ -79,6 +79,9 @@ prev_roc = 0
 for epoch in range(num_epochs):
     for batch_n, (X, y) in enumerate(train_data):
         X = X.float().to(device)
+        # cross entropy loss takes an int as the target which corresponds
+        # to the index of the target class
+        # output should be of shape (batch_size, num_classes)
         y = y.long().to(device)
 
         # zero out the optimizer gradient
@@ -86,8 +89,9 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         model.init_hidden(X)
         y_pred = model(X)
-
-        batch_loss = loss(y_pred, y)
+        print(y_pred.size())
+        print(y.size())
+        batch_loss = loss(y_pred, y.view(-1))
         batch_loss.backward()
         optimizer.step()
 
@@ -95,6 +99,9 @@ for epoch in range(num_epochs):
     label_lst = []
 
     for batch_n, (X, y) in enumerate(train_data):
+        X = X.float().to(device)
+        # y as a float this time for bc no call to nn.CrossEntropyLoss
+        y = y.float().to(device)
         y_pred = model(X)
         y_pred = torch.sigmoid(y_pred).cuda()
         output_lst.append(y_pred.data)
