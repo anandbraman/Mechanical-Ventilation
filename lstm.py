@@ -134,6 +134,7 @@ for epoch in range(num_epochs):
         plt.title('Mechanical Ventilation Train ROC')
         plt.legend(loc="lower right")
         plt.savefig('results/best_model_train_roc.png')
+        plt.close()
 
     print('Epoch {0} Accuracy: {1}'.format(epoch, acc))
     print('AUROC {}'.format(roc_auc))
@@ -180,3 +181,4 @@ plt.ylabel('True Positive Rate')
 plt.title('Mechanical Ventilation Test ROC')
 plt.legend(loc="lower right")
 plt.savefig('results/best_model_test_roc.png')
+plt.close()
