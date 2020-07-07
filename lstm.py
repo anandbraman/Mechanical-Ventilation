@@ -28,15 +28,15 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
                             num_layers=num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size*sequence_length, self.num_classes)
-
-    def init_hidden(self, x):
+ 
+    def forward(self, x):
         self.batch_size = x.size()[0]
+        # no memory between batches, so init
+        # zeros every forward pass
         self.hidden_cell = (torch.zeros(num_layers, self.batch_size,
                                         hidden_size),
                             torch.zeros(num_layers, self.batch_size,
                                         hidden_size))
-
-    def forward(self, x):
         # input data x
         # for the view call: batch size, sequence length, cols
         lstm_out, self.hidden_cell = self.lstm(x.view(self.batch_size,
@@ -87,7 +87,6 @@ for epoch in range(num_epochs):
         # zero out the optimizer gradient
         # no dependency between samples
         optimizer.zero_grad()
-        model.init_hidden(X).cuda()
         y_pred = model(X)
         y_pred = torch.sigmoid(y_pred).cuda()
 
