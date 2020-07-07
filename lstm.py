@@ -5,7 +5,7 @@ from torch.utils.data import TensorDataset
 import torch.nn.functional as F
 import os
 from sklearn.metrics import roc_curve, auc
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 
 torch.manual_seed(308)
@@ -25,7 +25,7 @@ class LSTM(nn.Module):
         super(LSTM, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.num_classes = 1
+        self.num_classes = 2
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
                             num_layers=num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size*sequence_length, self.num_classes)
@@ -75,6 +75,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 loss = nn.CrossEntropyLoss()
 
 # output and label list
+# roc output is of len 3
 prev_roc = 0
 for epoch in range(num_epochs):
     for batch_n, (X, y) in enumerate(train_data):
@@ -117,13 +118,14 @@ for epoch in range(num_epochs):
     # must put tensors on the cpu to convert to numpy array
     fpr, tpr, _ = roc_curve(label.cpu(), output.cpu())
     roc_auc = auc(fpr, tpr)
-    if roc_auc[2] > prev_roc[2]:
+    print(roc_auc)
+    if roc_auc > prev_roc:
         prev_roc = roc_auc
         torch.save(model.state_dict(), 'results/best_model.pt')
         plt.figure()
         lw = 2
         plt.plot(fpr, tpr, color='dark orange', lw=lw,
-                 label='ROC Curve (area = %0.2f)' % roc_auc[2])
+                 label='ROC Curve (area = %0.2f)' % roc_auc)
         plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
@@ -134,4 +136,4 @@ for epoch in range(num_epochs):
         plt.save('results/best_model_roc.png')
 
     print('Epoch {0} Accuracy: {1}'.format(epoch, acc))
-    print('AUROC {}'.format(roc_auc[2]))
+    print('AUROC {}'.format(roc_auc))
