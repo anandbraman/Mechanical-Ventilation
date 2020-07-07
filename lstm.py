@@ -31,15 +31,16 @@ class LSTM(nn.Module):
 
     def init_hidden(self, x):
         self.batch_size = x.size()[0]
-        self.hidden_cell = (torch.zeros(self.batch_size, sequence_length,
-                                        input_size),
-                            torch.zeros(self.batch_size, sequence_length,
-                                        input_size))
+        self.hidden_cell = (torch.zeros(self.batch_size, num_layers,
+                                        hidden_size),
+                            torch.zeros(self.batch_size, num_layers,
+                                        hidden_size))
 
     def forward(self, x):
         # input data x
         # for the view call: batch size, sequence length, cols
-        lstm_out, self.hidden_cell = self.lstm(x.view(self.batch_size, x.size()[1], -1),
+        lstm_out, self.hidden_cell = self.lstm(x.view(self.batch_size,
+                                                      x.size()[1], -1),
                                                self.hidden_cell)
         preds = self.fc(lstm_out.view(-1, self.batch_size))
         return preds.view(-1)
