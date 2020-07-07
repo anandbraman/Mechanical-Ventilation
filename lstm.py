@@ -108,12 +108,12 @@ for epoch in range(num_epochs):
         output_lst.append(y_pred.data)
         label_lst.append(y)
 
-    output_lst = torch.cat(output_lst)
-    label_lst = torch.cat(label_lst)
-    pred_class = (y_pred > 0.5).float()
-    acc = torch.mean((pred_class == label_lst).float()).item() * 100
+    output = torch.cat(output_lst)
+    label = torch.cat(label_lst)
+    pred_class = (output > 0.5).float()
+    acc = torch.mean((pred_class == label).float()).item() * 100
 
-    fpr, tpr, _ = roc_curve(y, y_pred)
+    fpr, tpr, _ = roc_curve(label, output)
     roc_auc = auc(fpr, tpr)
     if roc_auc[2] > prev_roc[2]:
         prev_roc = roc_auc
