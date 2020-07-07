@@ -19,6 +19,7 @@ num_epochs = 100
 # data and model go to GPU
 device = torch.device('cuda')
 
+
 class LSTM(nn.Module):
 
     def __init__(self, input_size, hidden_size, num_layers):
@@ -46,7 +47,6 @@ class LSTM(nn.Module):
 
         preds = self.fc(lstm_out.reshape(self.batch_size, -1))
         return preds.view(self.batch_size, -1)
-
 
 
 X_train = torch.load('data/X_train.pt')
@@ -90,8 +90,8 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         model.init_hidden(X)
         y_pred = model(X)
-        #print(y_pred.size())
-        #print(y.size())
+        # print(y_pred.size())
+        # print(y.size())
         batch_loss = loss(y_pred, y.view(-1))
         batch_loss.backward()
         optimizer.step()
@@ -124,16 +124,59 @@ for epoch in range(num_epochs):
         torch.save(model.state_dict(), 'results/best_model.pt')
         plt.figure()
         lw = 2
-        plt.plot(fpr, tpr, color='dark orange', lw=lw,
+        plt.plot(fpr, tpr, color='darkorange', lw=lw,
                  label='ROC Curve (area = %0.2f)' % roc_auc)
         plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
         plt.xlabel('False Positive Rate')
         plt.ylabel('True Positive Rate')
-        plt.title('Receiver operating characteristic example')
+        plt.title('Mechanical Ventilation Train ROC')
         plt.legend(loc="lower right")
-        plt.save('results/best_model_roc.png')
+        plt.savefig('results/best_model_train_roc.png')
 
     print('Epoch {0} Accuracy: {1}'.format(epoch, acc))
     print('AUROC {}'.format(roc_auc))
+
+# test results
+best_model = LSTM(input_size=input_size, hidden_size=hidden_size,
+                  num_layers=num_layers)
+
+best_model_sd = torch.load('results/best_model.pt')
+best_model.load_state_dict(best_model_sd)
+best_model.to(device)
+
+# iterating over the test data
+for batch_n, (X, y) in enumerate(test_data):
+    X = X.float().to(device)
+    # y as a float this time for bc no call to nn.CrossEntropyLoss
+    y = y.float().to(device)
+    model.init_hidden(X)
+    y_pred = model(X)
+    # select prediction of class 1
+    y_pred = y_pred[:, 1]
+    y_pred = torch.sigmoid(y_pred).cuda()
+    output_lst.append(y_pred.data)
+    label_lst.append(y)
+
+output = torch.cat(output_lst)
+label = torch.cat(label_lst)
+pred_class = (output > 0.5).float()
+acc = torch.mean((pred_class == label).float()).item() * 100
+
+# must put tensors on the cpu to convert to numpy array
+fpr, tpr, _ = roc_curve(label.cpu(), output.cpu())
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+lw = 2
+plt.plot(fpr, tpr, color='darkorange', lw=lw,
+         label='ROC Curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Mechanical Ventilation Test ROC')
+plt.legend(loc="lower right")
+plt.savefig('results/best_model_test_roc.png')
