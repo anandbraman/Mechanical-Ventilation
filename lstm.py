@@ -67,7 +67,9 @@ test_data = DataLoader(test_data, batch_size=128)
 
 # initializing model
 model = LSTM(input_size=input_size, hidden_size=hidden_size,
-             num_layers=num_layers).cuda()
+             num_layers=num_layers)
+# send to gpu
+model.cuda()
 
 # setting optimizer
 lr = 0.001
@@ -78,14 +80,14 @@ loss = nn.CrossEntropyLoss()
 prev_roc = 0
 for epoch in range(num_epochs):
     for batch_n, (X, y) in enumerate(train_data):
-        X = X.to(device).float()
-        y = y.to(device).float()
+        X = X.float().to(device)
+        y = y.float().to(device)
 
         # zero out the optimizer gradient
         # no dependency between samples
         optimizer.zero_grad()
         model.init_hidden(X)
-        y_pred = model(X).cuda()
+        y_pred = model(X)
         y_pred = torch.sigmoid(y_pred).cuda()
 
         batch_loss = loss(y_pred, y)
@@ -96,7 +98,7 @@ for epoch in range(num_epochs):
     label_lst = []
 
     for batch_n, (X, y) in enumerate(train_data):
-        y_pred = model(X).cuda()
+        y_pred = model(X)
         y_pred = torch.sigmoid(y_pred).cuda()
         output_lst.append(y_pred.data)
         label_lst.append(y)
