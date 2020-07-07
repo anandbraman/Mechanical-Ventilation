@@ -102,6 +102,7 @@ for epoch in range(num_epochs):
         X = X.float().to(device)
         # y as a float this time for bc no call to nn.CrossEntropyLoss
         y = y.float().to(device)
+        model.init_hidden(X)
         y_pred = model(X)
         y_pred = torch.sigmoid(y_pred).cuda()
         output_lst.append(y_pred.data)
