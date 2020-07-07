@@ -68,6 +68,7 @@ test_data = DataLoader(test_data, batch_size=128)
 # initializing model
 model = LSTM(input_size=input_size, hidden_size=hidden_size,
              num_layers=num_layers)
+
 # send to gpu
 model.cuda()
 
@@ -86,7 +87,7 @@ for epoch in range(num_epochs):
         # zero out the optimizer gradient
         # no dependency between samples
         optimizer.zero_grad()
-        model.init_hidden(X)
+        model.init_hidden(X).cuda()
         y_pred = model(X)
         y_pred = torch.sigmoid(y_pred).cuda()
 
