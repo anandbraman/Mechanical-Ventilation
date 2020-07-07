@@ -85,7 +85,7 @@ for epoch in range(num_epochs):
         # no dependency between samples
         optimizer.zero_grad()
         model.init_hidden(X)
-        y_pred = model(X)
+        y_pred = model(X).cuda()
         y_pred = torch.sigmoid(y_pred)
 
         batch_loss = loss(y_pred, y)
