@@ -15,7 +15,6 @@ sequence_length = 48
 num_layers = 1
 hidden_size = 8
 learning_rate = 0.001
-batch_size = 128
 num_epochs = 100
 
 
@@ -31,17 +30,17 @@ class LSTM(nn.Module):
         self.fc = nn.Linear(hidden_size*sequence_length, self.num_classes)
 
     def init_hidden(self, x):
-        batch_size = x.size()[0]
-        self.hidden_cell = (torch.zeros(batch_size, sequence_length,
+        self.batch_size = x.size()[0]
+        self.hidden_cell = (torch.zeros(self.batch_size, sequence_length,
                                         input_size),
-                            torch.zeros(batch_size, sequence_length,
+                            torch.zeros(self.batch_size, sequence_length,
                                         input_size))
 
     def forward(self, x):
         # input data x
-        lstm_out, self.hidden_cell = self.lstm(x.view(batch_size, len(x), -1),
+        lstm_out, self.hidden_cell = self.lstm(x.view(self.batch_size, len(x), -1),
                                                self.hidden_cell)
-        preds = self.fc(lstm_out.view(-1, batch_size))
+        preds = self.fc(lstm_out.view(-1, self.batch_size))
         return preds.view(-1)
 
 
@@ -61,8 +60,8 @@ train_data = TensorDataset(X_train, y_train)
 test_data = TensorDataset(X_test, y_test)
 
 # converting to DataLoader obj
-train_data = DataLoader(train_data)
-test_data = DataLoader(test_data)
+train_data = DataLoader(train_data, batch_size=128)
+test_data = DataLoader(test_data, batch_size=128)
 
 # initializing model
 model = LSTM(input_size=input_size, hidden_size=hidden_size,
