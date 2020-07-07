@@ -104,6 +104,7 @@ for epoch in range(num_epochs):
         y = y.float().to(device)
         model.init_hidden(X)
         y_pred = model(X)
+        y_pred = y_pred[:, 1]
         y_pred = torch.sigmoid(y_pred).cuda()
         output_lst.append(y_pred.data)
         label_lst.append(y)
