@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
+from torch.utils.data import TensorDataset
 import torch.nn.functional as F
 import os
 from sklearn.metrics import roc_curve, auc
@@ -57,8 +57,8 @@ X_test = torch.load('data/X_test.pt')
 y_test = torch.load('data/y_test.pt')
 
 # creating dataset
-train_data = Dataset(X_train, y_train)
-test_data = Dataset(X_test, y_test)
+train_data = TensorDataset(X_train, y_train)
+test_data = TensorDataset(X_test, y_test)
 
 # converting to DataLoader obj
 train_data = DataLoader(train_data)
