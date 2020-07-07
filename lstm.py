@@ -45,7 +45,7 @@ class LSTM(nn.Module):
                                                self.hidden_cell)
         
         preds = self.fc(lstm_out.reshape(self.batch_size, -1))
-        return preds.view(self.batch_size, -1).float()
+        return preds.view(self.batch_size, -1)
 
 
 
@@ -79,7 +79,7 @@ prev_roc = 0
 for epoch in range(num_epochs):
     for batch_n, (X, y) in enumerate(train_data):
         X = X.float().to(device)
-        y = y.float().to(device)
+        y = y.long().to(device)
 
         # zero out the optimizer gradient
         # no dependency between samples
