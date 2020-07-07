@@ -113,7 +113,8 @@ for epoch in range(num_epochs):
     pred_class = (output > 0.5).float()
     acc = torch.mean((pred_class == label).float()).item() * 100
 
-    fpr, tpr, _ = roc_curve(label, output)
+    # must put tensors on the cpu to convert to numpy array
+    fpr, tpr, _ = roc_curve(label.cpu(), output.cpu())
     roc_auc = auc(fpr, tpr)
     if roc_auc[2] > prev_roc[2]:
         prev_roc = roc_auc
