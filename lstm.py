@@ -67,7 +67,7 @@ test_data = DataLoader(test_data, batch_size=128)
 
 # initializing model
 model = LSTM(input_size=input_size, hidden_size=hidden_size,
-             num_layers=num_layers)
+             num_layers=num_layers).to(device)
 
 # setting optimizer
 lr = 0.001
