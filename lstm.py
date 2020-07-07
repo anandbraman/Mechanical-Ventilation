@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 import torch.nn.functional as F
 import os
 from sklearn.metrics import roc_curve, auc
@@ -55,8 +56,13 @@ y_train = torch.load('data/y_train.pt')
 X_test = torch.load('data/X_test.pt')
 y_test = torch.load('data/y_test.pt')
 
-train_data = DataLoader(X_train, y_train)
-test_data = DataLoader(X_test, y_test)
+# creating dataset
+train_data = Dataset(X_train, y_train)
+test_data = Dataset(X_test, y_test)
+
+# converting to DataLoader obj
+train_data = DataLoader(train_data)
+test_data = DataLoader(test_data)
 
 # initializing model
 model = LSTM(input_size=input_size, hidden_size=hidden_size,
@@ -101,9 +107,9 @@ for epoch in range(num_epochs):
 
     fpr, tpr, _ = roc_curve(y, y_pred)
     roc_auc = auc(fpr, tpr)
-    if roc_auc > prev_roc:
+    if roc_auc[2] > prev_roc[2]:
         prev_roc = roc_auc
-        torch.save(model.state_dict(), 'best_model.pt')
+        torch.save(model.state_dict(), 'results/best_model.pt')
         plt.figure()
         lw = 2
         plt.plot(fpr, tpr, color='dark orange', lw=lw,
@@ -115,7 +121,7 @@ for epoch in range(num_epochs):
         plt.ylabel('True Positive Rate')
         plt.title('Receiver operating characteristic example')
         plt.legend(loc="lower right")
-        plt.save('best_model_roc.png')
+        plt.save('results/best_model_roc.png')
 
     print('Epoch {0} Accuracy: {1}'.format(epoch, acc))
     print('AUROC {}'.format(roc_auc[2]))
