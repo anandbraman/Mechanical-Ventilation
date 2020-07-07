@@ -67,7 +67,7 @@ test_data = DataLoader(test_data, batch_size=128)
 
 # initializing model
 model = LSTM(input_size=input_size, hidden_size=hidden_size,
-             num_layers=num_layers).to(device)
+             num_layers=num_layers).cuda()
 
 # setting optimizer
 lr = 0.001
@@ -86,7 +86,7 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         model.init_hidden(X)
         y_pred = model(X).cuda()
-        y_pred = torch.sigmoid(y_pred)
+        y_pred = torch.sigmoid(y_pred).cuda()
 
         batch_loss = loss(y_pred, y)
         batch_loss.backward()
@@ -96,8 +96,8 @@ for epoch in range(num_epochs):
     label_lst = []
 
     for batch_n, (X, y) in enumerate(train_data):
-        y_pred = model(X)
-        y_pred = torch.sigmoid(y_pred)
+        y_pred = model(X).cuda()
+        y_pred = torch.sigmoid(y_pred).cuda()
         output_lst.append(y_pred.data)
         label_lst.append(y)
 
