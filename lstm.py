@@ -78,8 +78,8 @@ loss = nn.CrossEntropyLoss()
 prev_roc = 0
 for epoch in range(num_epochs):
     for batch_n, (X, y) in enumerate(train_data):
-        X = X.to(device)
-        y = y.to(device)
+        X = X.to(device).float()
+        y = y.to(device).float()
 
         # zero out the optimizer gradient
         # no dependency between samples
