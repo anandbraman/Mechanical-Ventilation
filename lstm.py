@@ -45,7 +45,7 @@ class LSTM(nn.Module):
                                                self.hidden_cell)
         
         preds = self.fc(lstm_out.reshape(self.batch_size, -1))
-        return preds.view(-1)
+        return preds.view(self.batch_size, -1)
 
 
 
