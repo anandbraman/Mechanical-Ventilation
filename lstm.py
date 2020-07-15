@@ -206,9 +206,9 @@ test_output = torch.cat(test_output_lst)
 test_label = torch.cat(test_label_lst)
 test_class = (test_output > 0.5).float()
 test_acc = torch.mean((test_class == test_label).float()).item() * 100
-test_precision = precision_score(test_label, test_class)
-test_recall = recall_score(test_label, test_class)
-test_f1 = f1_score(test_label, test_class)
+test_precision = precision_score(test_label.cpu(), test_class.cpu())
+test_recall = recall_score(test_label.cpu(), test_class.cpu())
+test_f1 = f1_score(test_label.cpu(), test_class.cpu())
 
 precision, recall, _ = precision_recall_curve(test_label.cpu(),
                                               test_output.cpu())
