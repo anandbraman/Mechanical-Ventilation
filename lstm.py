@@ -5,7 +5,9 @@ from torch.utils.data import TensorDataset
 import torch.nn.functional as F
 import os
 from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import precision_score, precision_recall_curve, recall_score, f1_score
 import matplotlib.pyplot as plt
+from experiment_tracking import ExperimentTracker
 
 
 torch.manual_seed(308)
@@ -14,10 +16,23 @@ input_size = 5
 sequence_length = 48
 num_layers = 1
 hidden_size = 8
-learning_rate = 0.001
+lr = 0.001
 num_epochs = 100
 # data and model go to GPU
 device = torch.device('cuda')
+
+# epochs, hiddensize, LR
+model_id = "LSTM_" + str(num_epochs) + '_' + str(hidden_size) + \
+    '_' + str(lr).split('.')[1]
+
+experiment_tracker = ExperimentTracker(
+    'client_secret.json', 'experiment-tracking')
+
+experiment_tracker.unique_params(model_id, 'model_id')
+
+# creating a model_id folder in which plots can be saved
+if not os.path.isdir('results/' + model_id):
+    os.mkdir('results/' + model_id)
 
 
 class LSTM(nn.Module):
@@ -70,13 +85,12 @@ model = LSTM(input_size=input_size, hidden_size=hidden_size,
 model.cuda()
 
 # setting optimizer
-lr = 0.001
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 loss = nn.CrossEntropyLoss()
 
-# output and label list
-# roc output is of len 3
+
 prev_roc = 0
+loss_lst = []
 for epoch in range(num_epochs):
     for batch_n, (X, y) in enumerate(train_data):
         X = X.float().to(device)
@@ -97,6 +111,7 @@ for epoch in range(num_epochs):
         optimizer.step()
 
     output_lst = []
+    y_pred_lst
     label_lst = []
 
     for batch_n, (X, y) in enumerate(train_data):
@@ -105,15 +120,21 @@ for epoch in range(num_epochs):
         y = y.float().to(device)
         model.init_hidden(X)
         y_pred = model(X)
-        y_pred = y_pred[:, 1]
-        y_pred = torch.sigmoid(y_pred).cuda()
-        output_lst.append(y_pred.data)
+        y_pred_lst.append(y_pred)
+        # pulling out the prediction of class 1
+        y_pos_pred = y_pred[:, 1]
+        y_pos_pred = torch.sigmoid(y_pos_pred).cuda()
+        output_lst.append(y_pos_pred.data)
         label_lst.append(y)
 
     output = torch.cat(output_lst)
     label = torch.cat(label_lst)
+    y_pred_df = torch.cat(y_pred_lst)
     pred_class = (output > 0.5).float()
     acc = torch.mean((pred_class == label).float()).item() * 100
+    epoch_loss = loss(y_pred_df, label.long())
+    # must graph the epoch losses to check for convergence
+    loss_lst.append(epoch_loss.item())
 
     # must put tensors on the cpu to convert to numpy array
     fpr, tpr, _ = roc_curve(label.cpu(), output.cpu())
@@ -121,7 +142,8 @@ for epoch in range(num_epochs):
     print(roc_auc)
     if roc_auc > prev_roc:
         prev_roc = roc_auc
-        torch.save(model.state_dict(), 'results/best_model.pt')
+        fpath = 'results/' + model_id + '/' + model_id + '.pt'
+        torch.save(model.state_dict(), fpath)
         plt.figure()
         lw = 2
         plt.plot(fpr, tpr, color='darkorange', lw=lw,
@@ -133,20 +155,35 @@ for epoch in range(num_epochs):
         plt.ylabel('True Positive Rate')
         plt.title('Mechanical Ventilation Train ROC')
         plt.legend(loc="lower right")
-        plt.savefig('results/best_model_train_roc.png')
+        plot_path = 'results/' + model_id + '/' + model_id + '_train_roc.png'
+        plt.savefig(plot_path)
         plt.close()
 
     print('Epoch {0} Accuracy: {1}'.format(epoch, acc))
     print('AUROC {}'.format(roc_auc))
 
+# checking for convergence by plotting loss after each epoch
+plt.figure()
+lw = 2
+plt.plot(range(len(train_data)), loss_lst)
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.title('Model Convergence')
+loss_plot_path = 'results/' + model_id + '/' + model_id + '_loss.png'
+plt.savefig(loss_plot_path)
+plt.close()
+
 # test results
 best_model = LSTM(input_size=input_size, hidden_size=hidden_size,
                   num_layers=num_layers)
 
-best_model_sd = torch.load('results/best_model.pt')
+best_model_path = 'results/' + model_id + '/' + model_id + '.pt'
+best_model_sd = torch.load(best_model_path)
 best_model.load_state_dict(best_model_sd)
 best_model.to(device)
 
+test_output_lst = []
+test_label_lst = []
 # iterating over the test data
 for batch_n, (X, y) in enumerate(test_data):
     X = X.float().to(device)
@@ -157,22 +194,39 @@ for batch_n, (X, y) in enumerate(test_data):
     # select prediction of class 1
     y_pred = y_pred[:, 1]
     y_pred = torch.sigmoid(y_pred).cuda()
-    output_lst.append(y_pred.data)
-    label_lst.append(y)
+    test_output_lst.append(y_pred.data)
+    test_label_lst.append(y)
 
-output = torch.cat(output_lst)
-label = torch.cat(label_lst)
-pred_class = (output > 0.5).float()
-acc = torch.mean((pred_class == label).float()).item() * 100
+test_output = torch.cat(test_output_lst)
+test_label = torch.cat(test_label_lst)
+test_class = (test_output > 0.5).float()
+test_acc = torch.mean((test_class == test_label).float()).item() * 100
+test_precision = precision_score(test_label, test_class)
+test_recall = recall_score(test_label, test_class)
+test_f1 = f1_score(test_label, test_class)
+
+precision, recall, _ = precision_recall_curve(test_label.cpu(),
+                                              test_output.cpu())
+# precision recall plot
+plt.figure()
+plt.plot(recall, precision, color='blue')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.legend(loc='upper right')
+plt.title('Test Precision Recall Curve')
+pr_path = 'results/' + model_id + '/' + model_id + '_precision_recall.png'
+plt.savefig(pr_path)
+plt.close()
 
 # must put tensors on the cpu to convert to numpy array
-fpr, tpr, _ = roc_curve(label.cpu(), output.cpu())
-roc_auc = auc(fpr, tpr)
+# plotting the ROC curve as well
+test_fpr, test_tpr, _ = roc_curve(test_label.cpu(), test_output.cpu())
+test_roc_auc = auc(fpr, tpr)
 
 plt.figure()
 lw = 2
 plt.plot(fpr, tpr, color='darkorange', lw=lw,
-         label='ROC Curve (area = %0.2f)' % roc_auc)
+         label='ROC Curve (area = %0.2f)' % test_roc_auc)
 plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
 plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
@@ -180,5 +234,12 @@ plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
 plt.title('Mechanical Ventilation Test ROC')
 plt.legend(loc="lower right")
-plt.savefig('results/best_model_test_roc.png')
+test_roc_path = 'results/' + model_id + '/' + model_id + '_test_roc.png'
+plt.savefig(test_roc_path)
 plt.close()
+
+experiment_params = ['LSTM', model_id, num_epochs, lr,
+                     hidden_size, loss_lst[-1], test_precision,
+                     test_recall, test_f1, test_roc_auc, test_acc]
+
+experiment_tracker.record_experiment(experiment_params)
