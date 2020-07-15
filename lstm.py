@@ -26,8 +26,8 @@ device = torch.device('cuda')
 model_id = "LSTM_" + str(num_epochs) + '_' + str(hidden_size) + \
     '_' + str(lr).split('.')[1]
 
-#experiment_tracker = ExperimentTracker(
-    #'client_secret.json', 'experiment-tracking')
+# experiment_tracker = ExperimentTracker(
+#    'client_secret.json', 'experiment-tracking')
 
 # experiment_tracker.unique_params(model_id, 'model_id')
 
@@ -112,7 +112,7 @@ for epoch in range(num_epochs):
         optimizer.step()
 
     output_lst = []
-    y_pred_lst
+    y_pred_lst = []
     label_lst = []
 
     for batch_n, (X, y) in enumerate(train_data):
@@ -121,9 +121,12 @@ for epoch in range(num_epochs):
         y = y.float().to(device)
         model.init_hidden(X)
         y_pred = model(X)
+        # append prediction probabilities for classes 0 and 1
+        # used in loss computation
         y_pred_lst.append(y_pred)
         # pulling out the prediction of class 1
         y_pos_pred = y_pred[:, 1]
+        # turning into probability
         y_pos_pred = torch.sigmoid(y_pos_pred).cuda()
         output_lst.append(y_pos_pred.data)
         label_lst.append(y)
@@ -133,7 +136,8 @@ for epoch in range(num_epochs):
     y_pred_df = torch.cat(y_pred_lst)
     pred_class = (output > 0.5).float()
     acc = torch.mean((pred_class == label).float()).item() * 100
-    epoch_loss = loss(y_pred_df, label.long())
+    # label must be a long in crossentropy loss calc
+    epoch_loss = loss(y_pred_df, label.long().view(-1))
     # must graph the epoch losses to check for convergence
     loss_lst.append(epoch_loss.item())
 
@@ -240,8 +244,9 @@ plt.savefig(test_roc_path)
 plt.close()
 
 experiment_header = ['model_type', 'model_id', 'epochs',
-                     'learning_rate', 'hidden_size', 'loss', 'precision', 'recall',
-                     'f1_score', 'auroc', 'accuracy']
+                     'learning_rate', 'hidden_size', 'loss', 'precision', 
+                     'recall', 'f1_score', 'auroc', 'accuracy']
+
 experiment_params = ['LSTM', model_id, num_epochs, lr,
                      hidden_size, loss_lst[-1], test_precision,
                      test_recall, test_f1, test_roc_auc, test_acc]
