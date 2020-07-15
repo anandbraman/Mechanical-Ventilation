@@ -254,12 +254,12 @@ experiment_params = ['LSTM', model_id, num_epochs, lr,
 # writing results to a csv file
 if not os.path.isfile('results/experiment_tracking.csv'):
     with open('results/experiment_tracking.csv', 'a+', newline='') as f:
-        Writer = csv.writer()
+        Writer = csv.writer(f)
         Writer.writerow(experiment_header)
         Writer.writerow(experiment_params)
 else:
     with open('results/experiment_tracking.csv', 'a+', newline='') as f:
-        Writer = csv.writer()
+        Writer = csv.writer(f)
         Writer.writerow(experiment_params)
 
 # experiment_tracker.record_experiment(experiment_params)
