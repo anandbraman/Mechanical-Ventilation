@@ -8,6 +8,7 @@ from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import precision_score, precision_recall_curve, recall_score, f1_score
 import matplotlib.pyplot as plt
 from experiment_tracking import ExperimentTracker
+import csv
 
 
 torch.manual_seed(308)
@@ -25,10 +26,10 @@ device = torch.device('cuda')
 model_id = "LSTM_" + str(num_epochs) + '_' + str(hidden_size) + \
     '_' + str(lr).split('.')[1]
 
-experiment_tracker = ExperimentTracker(
-    'client_secret.json', 'experiment-tracking')
+#experiment_tracker = ExperimentTracker(
+    #'client_secret.json', 'experiment-tracking')
 
-experiment_tracker.unique_params(model_id, 'model_id')
+# experiment_tracker.unique_params(model_id, 'model_id')
 
 # creating a model_id folder in which plots can be saved
 if not os.path.isdir('results/' + model_id):
@@ -238,8 +239,22 @@ test_roc_path = 'results/' + model_id + '/' + model_id + '_test_roc.png'
 plt.savefig(test_roc_path)
 plt.close()
 
+experiment_header = ['model_type', 'model_id', 'epochs',
+                     'learning_rate', 'hidden_size', 'loss', 'precision', 'recall',
+                     'f1_score', 'auroc', 'accuracy']
 experiment_params = ['LSTM', model_id, num_epochs, lr,
                      hidden_size, loss_lst[-1], test_precision,
                      test_recall, test_f1, test_roc_auc, test_acc]
 
-experiment_tracker.record_experiment(experiment_params)
+# writing results to a csv file
+if not os.path.isfile('results/experiment_tracking.csv'):
+    with open('results/experiment_tracking.csv', 'a+', newline='') as f:
+        Writer = csv.writer()
+        Writer.writerow(experiment_header)
+        Writer.writerow(experiment_params)
+else:
+    with open('results/experiment_tracking.csv', 'a+', newline='') as f:
+        Writer = csv.writer()
+        Writer.writerow(experiment_params)
+
+# experiment_tracker.record_experiment(experiment_params)
