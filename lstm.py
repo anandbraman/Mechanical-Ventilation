@@ -7,7 +7,7 @@ import os
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import precision_score, precision_recall_curve, recall_score, f1_score
 import matplotlib.pyplot as plt
-from experiment_tracking import ExperimentTracker
+# from experiment_tracking import ExperimentTracker
 import csv
 
 
@@ -170,7 +170,7 @@ for epoch in range(num_epochs):
 # checking for convergence by plotting loss after each epoch
 plt.figure()
 lw = 2
-plt.plot(range(len(train_data)), loss_lst)
+plt.plot(range(num_epochs), loss_lst)
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.title('Model Convergence')
