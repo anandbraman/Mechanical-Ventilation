@@ -23,7 +23,7 @@ num_epochs = 500
 device = torch.device('cuda')
 
 # epochs, hiddensize, LR
-model_id = "LSTM_" + str(num_epochs) + '_' + str(hidden_size) + \
+model_id = "GRU_" + str(num_epochs) + '_' + str(hidden_size) + \
     '_' + str(lr).split('.')[1]
 
 # experiment_tracker = ExperimentTracker(
