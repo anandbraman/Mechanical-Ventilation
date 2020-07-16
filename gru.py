@@ -18,12 +18,12 @@ sequence_length = 48
 num_layers = 1
 hidden_size = 8
 lr = 0.001
-num_epochs = 100
+num_epochs = 500
 # data and model go to GPU
 device = torch.device('cuda')
 
 # epochs, hiddensize, LR
-model_id = "GRU_" + str(num_epochs) + '_' + str(hidden_size) + \
+model_id = "LSTM_" + str(num_epochs) + '_' + str(hidden_size) + \
     '_' + str(lr).split('.')[1]
 
 # experiment_tracker = ExperimentTracker(
@@ -43,7 +43,7 @@ class LSTM(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.num_classes = 2
-        self.lstm = nn.GRU(input_size=input_size, hidden_size=hidden_size,
+        self.gru = nn.GRU(input_size=input_size, hidden_size=hidden_size,
                             num_layers=num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size*sequence_length, self.num_classes)
 
@@ -57,11 +57,11 @@ class LSTM(nn.Module):
     def forward(self, x):
         # input data x
         # for the view call: batch size, sequence length, cols
-        lstm_out, self.hidden_cell = self.lstm(x.view(self.batch_size,
+        gru_out, self.hidden_cell = self.gru(x.view(self.batch_size,
                                                       x.size()[1], -1),
                                                self.hidden_cell)
 
-        preds = self.fc(lstm_out.reshape(self.batch_size, -1))
+        preds = self.fc(gru_out.reshape(self.batch_size, -1))
         return preds.view(self.batch_size, -1)
 
 
@@ -226,11 +226,11 @@ plt.close()
 # must put tensors on the cpu to convert to numpy array
 # plotting the ROC curve as well
 test_fpr, test_tpr, _ = roc_curve(test_label.cpu(), test_output.cpu())
-test_roc_auc = auc(fpr, tpr)
+test_roc_auc = auc(test_fpr, test_tpr)
 
 plt.figure()
 lw = 2
-plt.plot(fpr, tpr, color='darkorange', lw=lw,
+plt.plot(test_fpr, test_tpr, color='darkorange', lw=lw,
          label='ROC Curve (area = %0.2f)' % test_roc_auc)
 plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
 plt.xlim([0.0, 1.0])
@@ -244,7 +244,7 @@ plt.savefig(test_roc_path)
 plt.close()
 
 experiment_header = ['model_type', 'model_id', 'epochs',
-                     'learning_rate', 'hidden_size', 'loss', 'precision',
+                     'learning_rate', 'hidden_size', 'loss', 'precision', 
                      'recall', 'f1_score', 'auroc', 'accuracy']
 
 experiment_params = ['LSTM', model_id, num_epochs, lr,

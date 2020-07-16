@@ -18,7 +18,7 @@ sequence_length = 48
 num_layers = 1
 hidden_size = 8
 lr = 0.001
-num_epochs = 100
+num_epochs = 500
 # data and model go to GPU
 device = torch.device('cuda')
 
@@ -226,11 +226,11 @@ plt.close()
 # must put tensors on the cpu to convert to numpy array
 # plotting the ROC curve as well
 test_fpr, test_tpr, _ = roc_curve(test_label.cpu(), test_output.cpu())
-test_roc_auc = auc(fpr, tpr)
+test_roc_auc = auc(test_fpr, test_tpr)
 
 plt.figure()
 lw = 2
-plt.plot(fpr, tpr, color='darkorange', lw=lw,
+plt.plot(test_fpr, test_tpr, color='darkorange', lw=lw,
          label='ROC Curve (area = %0.2f)' % test_roc_auc)
 plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
 plt.xlim([0.0, 1.0])
