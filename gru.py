@@ -49,10 +49,8 @@ class LSTM(nn.Module):
 
     def init_hidden(self, x):
         self.batch_size = x.size()[0]
-        self.hidden_cell = (torch.zeros(num_layers, self.batch_size,
-                                        hidden_size, device=device),
-                            torch.zeros(num_layers, self.batch_size,
-                                        hidden_size, device=device))
+        self.hidden_cell = torch.zeros(num_layers, self.batch_size,
+                                        hidden_size, device=device)
 
     def forward(self, x):
         # input data x
