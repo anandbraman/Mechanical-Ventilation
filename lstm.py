@@ -71,6 +71,7 @@ X_train = torch.load('data/X_train.pt')
 y_train = torch.load('data/y_train.pt')
 X_val = torch.load('data/X_val.pt')
 y_val = torch.load('data/y_val.pt')
+# concatenating train and val for full dataset
 X_train_full = torch.cat((X_train, X_val))
 y_train_full = torch.cat((y_train, y_val))
 X_test = torch.load('data/X_test.pt')
@@ -84,6 +85,8 @@ test_data = TensorDataset(X_test, y_test)
 
 # converting to DataLoader obj
 train_data = DataLoader(train_data, batch_size=128)
+val_data = DataLoader(val_data, batch_size=128)
+full_train_data = DataLoader(full_train_data, batch_size=128)
 test_data = DataLoader(test_data, batch_size=128)
 
 # initializing model
@@ -98,7 +101,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 loss = nn.CrossEntropyLoss()
 
 prev_roc = 0
-loss_lst = []
+train_loss = []
+val_loss = []
 for epoch in range(num_epochs):
     for batch_n, (X, y) in enumerate(train_data):
         X = X.float().to(device)
@@ -118,15 +122,18 @@ for epoch in range(num_epochs):
         batch_loss.backward()
         optimizer.step()
 
-
-    output, y_pred, label = nnfuncs.get_preds_labels(model, optimizer, train_data, device=device)
+    # training and validation outputs, predictions of class 1, labels
+    train_output, train_pred, train_label = nnfuncs.get_preds_labels(model, optimizer, train_data, device=device)
+    val_output, val_pred, val_label = nnfuncs.get_preds_labels(model, optimizer, val_data, device=device)
 
     # calculating accuracy at 0.5 threshold
-    acc = nnfuncs.model_accuracy(y_pred, label, 0.5)
+    acc = nnfuncs.model_accuracy(train_pred, train_label, 0.5)
     # label must be a long in crossentropy loss calc
-    epoch_loss = loss(output, label.long().view(-1))
+    epoch_loss_train = loss(train_output, train_label.long().view(-1))
+    epoch_loss_val = loss(val_output, val_label.long().view(-1))
     # must graph the epoch losses to check for convergence
-    loss_lst.append(epoch_loss.item())
+    train_loss.append(epoch_loss_train.item())
+    val_loss.append(epoch_loss_val.item())
 
     # must put tensors on the cpu to convert to numpy array
     fpr, tpr, _ = roc_curve(label.cpu(), output.cpu())
