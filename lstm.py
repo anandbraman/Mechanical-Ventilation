@@ -9,6 +9,8 @@ from sklearn.metrics import precision_score, precision_recall_curve, recall_scor
 import matplotlib.pyplot as plt
 # from experiment_tracking import ExperimentTracker
 import csv
+# file with useful modeling functions
+import nnfuncs
 
 
 torch.manual_seed(308)
@@ -67,11 +69,17 @@ class LSTM(nn.Module):
 
 X_train = torch.load('data/X_train.pt')
 y_train = torch.load('data/y_train.pt')
+X_val = torch.load('data/X_val.pt')
+y_val = torch.load('data/y_val.pt')
+X_train_full = torch.cat((X_train, X_val))
+y_train_full = torch.cat((y_train, y_val))
 X_test = torch.load('data/X_test.pt')
 y_test = torch.load('data/y_test.pt')
 
 # creating dataset
 train_data = TensorDataset(X_train, y_train)
+val_data = TensorDataset(X_val, y_val)
+full_train_data = TensorDataset(X_train_full, y_train_full)
 test_data = TensorDataset(X_test, y_test)
 
 # converting to DataLoader obj
@@ -88,7 +96,6 @@ model.cuda()
 # setting optimizer
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 loss = nn.CrossEntropyLoss()
-
 
 prev_roc = 0
 loss_lst = []
@@ -111,33 +118,13 @@ for epoch in range(num_epochs):
         batch_loss.backward()
         optimizer.step()
 
-    output_lst = []
-    y_pred_lst = []
-    label_lst = []
 
-    for batch_n, (X, y) in enumerate(train_data):
-        X = X.float().to(device)
-        # y as a float this time for bc no call to nn.CrossEntropyLoss
-        y = y.float().to(device)
-        model.init_hidden(X)
-        y_pred = model(X)
-        # append prediction probabilities for classes 0 and 1
-        # used in loss computation
-        y_pred_lst.append(y_pred)
-        # pulling out the prediction of class 1
-        y_pos_pred = y_pred[:, 1]
-        # turning into probability
-        y_pos_pred = torch.sigmoid(y_pos_pred).cuda()
-        output_lst.append(y_pos_pred.data)
-        label_lst.append(y)
+    output, y_pred, label = nnfuncs.get_preds_labels(model, optimizer, train_data, device=device)
 
-    output = torch.cat(output_lst)
-    label = torch.cat(label_lst)
-    y_pred_df = torch.cat(y_pred_lst)
-    pred_class = (output > 0.5).float()
-    acc = torch.mean((pred_class == label).float()).item() * 100
+    # calculating accuracy at 0.5 threshold
+    acc = nnfuncs.model_accuracy(y_pred, label, 0.5)
     # label must be a long in crossentropy loss calc
-    epoch_loss = loss(y_pred_df, label.long().view(-1))
+    epoch_loss = loss(output, label.long().view(-1))
     # must graph the epoch losses to check for convergence
     loss_lst.append(epoch_loss.item())
 
@@ -146,24 +133,13 @@ for epoch in range(num_epochs):
     roc_auc = auc(fpr, tpr)
     print(roc_auc)
     if roc_auc > prev_roc:
+        # save over roc
         prev_roc = roc_auc
-        fpath = 'results/' + model_id + '/' + model_id + '.pt'
-        torch.save(model.state_dict(), fpath)
-        plt.figure()
-        lw = 2
-        plt.plot(fpr, tpr, color='darkorange', lw=lw,
-                 label='ROC Curve (area = %0.2f)' % roc_auc)
-        plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Mechanical Ventilation Train ROC')
-        plt.legend(loc="lower right")
-        plot_path = 'results/' + model_id + '/' + model_id + '_train_roc.png'
-        plt.savefig(plot_path)
-        plt.close()
-
+        roc_path = 'results/' + model_id + '/' + model_id + '_train_roc.png'
+        nnfuncs.plot_roc(fpr, tpr, roc_auc, roc_path)
+        model_path = 'results/' + model_id + '/' + model_id + '.pt'
+        torch.save(model.state_dict(), model_path)
+        
     print('Epoch {0} Accuracy: {1}'.format(epoch, acc))
     print('AUROC {}'.format(roc_auc))
 
