@@ -1,21 +1,17 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
-from torch.utils.data import TensorDataset
 import torch.nn.functional as F
 import os
-from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import precision_score, precision_recall_curve, recall_score, f1_score
-import matplotlib.pyplot as plt
 # from experiment_tracking import ExperimentTracker
 import csv
 # file with useful modeling functions
 import nnfuncs
-
+from sklearn.metrics import auc, roc_curve
+import csv_tracker as track
 
 torch.manual_seed(308)
 
-input_size = 5
+# num obs in training sequence
 sequence_length = 48
 num_layers = 1
 hidden_size = 8
@@ -40,12 +36,16 @@ if not os.path.isdir('results/' + model_id):
 
 class LSTM(nn.Module):
 
-    def __init__(self, input_size, hidden_size, num_layers):
+    def __init__(self, sequence_length, hidden_size, num_layers):
         super(LSTM, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.sequence_length = sequence_length
+        # 5 predictors
+        self.input_size = 5
+        # binary classification
         self.num_classes = 2
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
+        self.lstm = nn.LSTM(input_size=self.input_size, hidden_size=hidden_size,
                             num_layers=num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size*sequence_length, self.num_classes)
 
@@ -67,6 +67,7 @@ class LSTM(nn.Module):
         return preds.view(self.batch_size, -1)
 
 
+# reading in the data
 X_train = torch.load('data/X_train.pt')
 y_train = torch.load('data/y_train.pt')
 X_val = torch.load('data/X_val.pt')
@@ -78,28 +79,24 @@ X_test = torch.load('data/X_test.pt')
 y_test = torch.load('data/y_test.pt')
 
 # creating dataset
-train_data = TensorDataset(X_train, y_train)
-val_data = TensorDataset(X_val, y_val)
-full_train_data = TensorDataset(X_train_full, y_train_full)
-test_data = TensorDataset(X_test, y_test)
+train_data = nnfuncs.build_dataset(X_train, y_train, 128)
+val_data = nnfuncs.build_dataset(X_val, y_val, 128)
+full_train_data = nnfuncs.build_dataset(X_train_full, y_train_full, 128)
+test_data = nnfuncs.build_dataset(X_test, y_test, 128)
 
-# converting to DataLoader obj
-train_data = DataLoader(train_data, batch_size=128)
-val_data = DataLoader(val_data, batch_size=128)
-full_train_data = DataLoader(full_train_data, batch_size=128)
-test_data = DataLoader(test_data, batch_size=128)
 
 # initializing model
-model = LSTM(input_size=input_size, hidden_size=hidden_size,
+model = LSTM(sequence_length=sequence_length, hidden_size=hidden_size,
              num_layers=num_layers)
 
 # send to gpu
 model.cuda()
 
-# setting optimizer
+# setting optimizer and loss
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 loss = nn.CrossEntropyLoss()
 
+# initializing roc value and list to track train and val losses after each epoch
 prev_roc = 0
 train_loss = []
 val_loss = []
@@ -123,43 +120,43 @@ for epoch in range(num_epochs):
         optimizer.step()
 
     # training and validation outputs, predictions of class 1, labels
-    train_output, train_pred, train_label = nnfuncs.get_preds_labels(model, optimizer, train_data, device=device)
-    val_output, val_pred, val_label = nnfuncs.get_preds_labels(model, optimizer, val_data, device=device)
+    train_output, train_pred, train_label = nnfuncs.get_preds_labels(model,
+                                                                     train_data,
+                                                                     device=device)
+    val_output, val_pred, val_label = nnfuncs.get_preds_labels(model,
+                                                               val_data,
+                                                               device=device)
 
     # calculating accuracy at 0.5 threshold
-    acc = nnfuncs.model_accuracy(train_pred, train_label, 0.5)
+    acc = nnfuncs.model_accuracy(val_pred, val_label, 0.5)
     # label must be a long in crossentropy loss calc
     epoch_loss_train = loss(train_output, train_label.long().view(-1))
     epoch_loss_val = loss(val_output, val_label.long().view(-1))
+
     # must graph the epoch losses to check for convergence
+    # appending loss vals to list after each epoch
     train_loss.append(epoch_loss_train.item())
     val_loss.append(epoch_loss_val.item())
 
     # must put tensors on the cpu to convert to numpy array
-    fpr, tpr, _ = roc_curve(label.cpu(), output.cpu())
+    # getting validation set roc and saving model
+    # if roc improves
+    fpr, tpr, _ = roc_curve(val_label.cpu(), val_pred.cpu())
     roc_auc = auc(fpr, tpr)
     print(roc_auc)
     if roc_auc > prev_roc:
         # save over roc
         prev_roc = roc_auc
-        roc_path = 'results/' + model_id + '/' + model_id + '_train_roc.png'
+        roc_path = 'results/' + model_id + '/' + model_id + '_val_roc.png'
         nnfuncs.plot_roc(fpr, tpr, roc_auc, roc_path)
         model_path = 'results/' + model_id + '/' + model_id + '.pt'
         torch.save(model.state_dict(), model_path)
-        
-    print('Epoch {0} Accuracy: {1}'.format(epoch, acc))
-    print('AUROC {}'.format(roc_auc))
 
-# checking for convergence by plotting loss after each epoch
-plt.figure()
-lw = 2
-plt.plot(range(num_epochs), loss_lst)
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title('Model Convergence')
-loss_plot_path = 'results/' + model_id + '/' + model_id + '_loss.png'
-plt.savefig(loss_plot_path)
-plt.close()
+    print('Epoch {0} Validation Set Accuracy: {1}'.format(epoch, acc))
+    print('Validation Set AUROC {}'.format(roc_auc))
+
+
+nnfuncs.plot_loss(model_id, train_loss, val_loss)
 
 # test results
 best_model = LSTM(input_size=input_size, hidden_size=hidden_size,
@@ -170,64 +167,28 @@ best_model_sd = torch.load(best_model_path)
 best_model.load_state_dict(best_model_sd)
 best_model.to(device)
 
-test_output_lst = []
-test_label_lst = []
-# iterating over the test data
-for batch_n, (X, y) in enumerate(test_data):
-    X = X.float().to(device)
-    # y as a float this time for bc no call to nn.CrossEntropyLoss
-    y = y.float().to(device)
-    model.init_hidden(X)
-    y_pred = model(X)
-    # select prediction of class 1
-    y_pred = y_pred[:, 1]
-    y_pred = torch.sigmoid(y_pred).cuda()
-    test_output_lst.append(y_pred.data)
-    test_label_lst.append(y)
+test_output, test_pred, test_label = nnfuncs.get_preds_labels(best_model,
+                                                              test_data,
+                                                              device)
 
-test_output = torch.cat(test_output_lst)
-test_label = torch.cat(test_label_lst)
-test_class = (test_output > 0.5).float()
-test_acc = torch.mean((test_class == test_label).float()).item() * 100
-test_precision = precision_score(test_label.cpu(), test_class.cpu())
-test_recall = recall_score(test_label.cpu(), test_class.cpu())
-test_f1 = f1_score(test_label.cpu(), test_class.cpu())
 
-precision, recall, _ = precision_recall_curve(test_label.cpu(),
-                                              test_output.cpu())
-# precision recall plot
-plt.figure()
-plt.plot(recall, precision, color='blue')
-plt.xlabel('Recall')
-plt.ylabel('Precision')
-plt.legend(loc='upper right')
-plt.title('Test Precision Recall Curve')
+test_acc = nnfuncs.model_accuracy(test_pred, test_label, 0.5)
+test_precision, test_recall, test_f1 = nnfuncs.precision_recall_f1(test_label,
+                                                                   test_pred,
+                                                                   0.5)
+
 pr_path = 'results/' + model_id + '/' + model_id + '_precision_recall.png'
-plt.savefig(pr_path)
-plt.close()
+nnfuncs.plot_test_precision_recall(pr_path, test_label, test_pred)
 
-# must put tensors on the cpu to convert to numpy array
-# plotting the ROC curve as well
+
+# plotting and saving ROC curve as well
 test_fpr, test_tpr, _ = roc_curve(test_label.cpu(), test_output.cpu())
 test_roc_auc = auc(test_fpr, test_tpr)
-
-plt.figure()
-lw = 2
-plt.plot(test_fpr, test_tpr, color='darkorange', lw=lw,
-         label='ROC Curve (area = %0.2f)' % test_roc_auc)
-plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('Mechanical Ventilation Test ROC')
-plt.legend(loc="lower right")
 test_roc_path = 'results/' + model_id + '/' + model_id + '_test_roc.png'
-plt.savefig(test_roc_path)
-plt.close()
+nnfuncs.plot_roc(test_fpr, test_tpr, test_roc_auc, test_roc_path)
 
 experiment_header = ['model_type', 'model_id', 'epochs',
-                     'learning_rate', 'hidden_size', 'loss', 'precision', 
+                     'learning_rate', 'hidden_size', 'loss', 'precision',
                      'recall', 'f1_score', 'auroc', 'accuracy']
 
 experiment_params = ['LSTM', model_id, num_epochs, lr,
