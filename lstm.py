@@ -24,10 +24,9 @@ device = torch.device('cuda')
 model_id = "LSTM_" + str(num_epochs) + '_' + str(hidden_size) + \
     '_' + str(lr).split('.')[1]
 
-# experiment_tracker = ExperimentTracker(
-#    'client_secret.json', 'experiment-tracking')
+tracker = track.CSVTracker('results/experiment_tracking.csv')
 
-# experiment_tracker.unique_params(model_id, 'model_id')
+tracker.is_model_unique(model_id)
 
 # creating a model_id folder in which plots can be saved
 if not os.path.isdir('results/' + model_id):
@@ -159,7 +158,7 @@ for epoch in range(num_epochs):
 nnfuncs.plot_loss(model_id, train_loss, val_loss)
 
 # test results
-best_model = LSTM(input_size=input_size, hidden_size=hidden_size,
+best_model = LSTM(sequence_length=sequence_length, hidden_size=hidden_size,
                   num_layers=num_layers)
 
 best_model_path = 'results/' + model_id + '/' + model_id + '.pt'
@@ -177,6 +176,7 @@ test_precision, test_recall, test_f1 = nnfuncs.precision_recall_f1(test_label,
                                                                    test_pred,
                                                                    0.5)
 
+
 pr_path = 'results/' + model_id + '/' + model_id + '_precision_recall.png'
 nnfuncs.plot_test_precision_recall(pr_path, test_label, test_pred)
 
@@ -184,26 +184,21 @@ nnfuncs.plot_test_precision_recall(pr_path, test_label, test_pred)
 # plotting and saving ROC curve as well
 test_fpr, test_tpr, _ = roc_curve(test_label.cpu(), test_output.cpu())
 test_roc_auc = auc(test_fpr, test_tpr)
+
 test_roc_path = 'results/' + model_id + '/' + model_id + '_test_roc.png'
 nnfuncs.plot_roc(test_fpr, test_tpr, test_roc_auc, test_roc_path)
 
-experiment_header = ['model_type', 'model_id', 'epochs',
-                     'learning_rate', 'hidden_size', 'loss', 'precision',
-                     'recall', 'f1_score', 'auroc', 'accuracy']
+tracking_dict = {}
+tracking_dict['model_type'] = model_id.split('_')[0]
+tracking_dict['model_id'] = model_id
+tracking_dict['epochs'] = num_epochs
+tracking_dict['learning_rate'] = lr
+tracking_dict['hidden_size'] = hidden_size
+tracking_dict['accuracy'] = test_acc
+tracking_dict['precision'] = test_precision
+tracking_dict['recall'] = test_recall
+tracking_dict['f1_score'] = test_f1
+tracking_dict['auroc'] = test_roc_auc
+tracking_dict['loss'] = val_loss[-1]
 
-experiment_params = ['LSTM', model_id, num_epochs, lr,
-                     hidden_size, loss_lst[-1], test_precision,
-                     test_recall, test_f1, test_roc_auc, test_acc]
-
-# writing results to a csv file
-if not os.path.isfile('results/experiment_tracking.csv'):
-    with open('results/experiment_tracking.csv', 'a+', newline='') as f:
-        Writer = csv.writer(f)
-        Writer.writerow(experiment_header)
-        Writer.writerow(experiment_params)
-else:
-    with open('results/experiment_tracking.csv', 'a+', newline='') as f:
-        Writer = csv.writer(f)
-        Writer.writerow(experiment_params)
-
-# experiment_tracker.record_experiment(experiment_params)
+tracker.record_experiment(tracking_dict)

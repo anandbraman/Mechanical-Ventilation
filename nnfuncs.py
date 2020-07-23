@@ -3,8 +3,9 @@ from torch.utils.data import TensorDataset, DataLoader
 import matplotlib.pyplot as plt
 import sklearn.metrics as sm
 
+
 def build_dataset(X: torch.Tensor, y: torch.Tensor, batch_size: int):
-    tensordata = TensorDataset(X,y)
+    tensordata = TensorDataset(X, y)
     dataloader = DataLoader(tensordata, batch_size=batch_size)
     return dataloader
 
@@ -30,7 +31,7 @@ def get_preds_labels(model, dataloader, device=torch.device('cuda')):
     # labels for each batch
     label_lst = []
 
-    for batch_n, (X, y) in enumerate(dataset):
+    for batch_n, (X, y) in enumerate(dataloader):
         X = X.float().to(device)
         y = y.float().to(device)
         model.init_hidden()
@@ -138,6 +139,7 @@ def plot_test_precision_recall(fpath, label: torch.Tensor, y_pred: torch.Tensor)
     plt.savefig(fpath)
     plt.close()
 
+
 def precision_recall_f1(y_true: torch.Tensor, y_pred: torch.Tensor, threshold: float):
     '''
     outputs precision, recall and f1 given a decision threshold
@@ -146,7 +148,7 @@ def precision_recall_f1(y_true: torch.Tensor, y_pred: torch.Tensor, threshold: f
 
     Inputs:
         true values or label, prediction probabilities, decision threshold [0, 1]
-    
+
     Outputs:
         precision, recall, f1-score at given threshold
     '''

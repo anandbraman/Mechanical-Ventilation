@@ -16,11 +16,11 @@ class CSVTracker():
         '''
         Uses model id to determine if hyperparam tuning experiment has been
         performed before
-        Input: 
+        Input:
             Model ID, a combination of relevant parameters + model type
             ex: Model - LSTM, Epochs - 250, LR - 0.001, HS - 8
             model_id = LSTM_250_001_8
-        
+
         Output:
             None
         '''
@@ -36,7 +36,7 @@ class CSVTracker():
                         return
                     elif ans == 'no':
                         sys.exit(0)
-        
+
     def record_experiment(self, params_results: dict):
         '''
         appends a line to csv
@@ -51,5 +51,3 @@ class CSVTracker():
         with open(self.filepath, 'a+', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=self.fields)
             writer.writerow(params_results)
-
-            
